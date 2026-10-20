@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="theme-4399">
+<head>
+<meta charset="utf-8">
+<title>宣传片录制台 · 4399 账号管理器</title>
+<style>
+  :root{
+    --bg:#131519; --panel:#1c1f26; --panel-2:#23262e; --border:#30343d;
+    --text:#eceef2; --muted:#9aa1ad; --muted-2:#7e8592; --brand:#ff6a13; --deep:#b8420b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font:15px/1.6 "Microsoft YaHei UI","Microsoft YaHei","PingFang SC",sans-serif;
+    padding:28px 32px 48px;
+  }
+  h1{font-size:20px;margin:0 0 4px;font-weight:700}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+  .stage{
+    background:#0f1114; border:1px solid var(--border); border-radius:12px;
+    padding:12px; display:inline-block; max-width:100%;
+  }
+  canvas{display:block;width:880px;height:495px;border-radius:6px;background:#0f1114;max-width:100%}
+  .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0 8px}
+  .bar.tight{margin-top:0}
+  .lbl{font-size:13px;color:var(--muted);margin-right:2px}
+  .seg{background:transparent;border-color:transparent;color:var(--muted);padding:9px 14px}
+  .seg:hover{background:var(--panel-2);color:var(--text)}
+  .seg.active{background:#2b2f38;border-color:#3f444f;color:var(--text);font-weight:600}
+  .hint2{font-size:12.5px;color:var(--muted-2);margin-left:6px}
+  button{
+    font:600 14px/1 inherit; color:var(--text); background:var(--panel-2);
+    border:1px solid var(--border); border-radius:8px; padding:11px 20px; cursor:pointer;
+  }
+  button:hover{background:#2b2f38}
+  button.primary{background:var(--deep);border-color:#d4581c;color:#fff}
+  button.primary:hover{background:#c9480e}
+  button:disabled{opacity:.45;cursor:default}
+  .prog{flex:1;min-width:180px;height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden}
+  .prog i{display:block;height:100%;width:0;background:var(--brand);transition:width .1s linear}
+  .stat{font-size:13px;color:var(--muted);min-width:150px}
+  .stat b{color:var(--text);font-weight:600}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-top:14px;max-width:900px}
+  .card h2{font-size:14px;margin:0 0 10px;font-weight:700;color:var(--muted)}
+  video{width:100%;max-width:880px;border-radius:8px;background:#000;display:block;margin-top:6px}
+  code{background:var(--panel-2);padding:2px 6px;border-radius:4px;font-size:12.5px;color:#ffdcc2}
+  .err{color:#ff8a8a;font-size:13px;margin-top:8px;white-space:pre-wrap}
+  a{color:#4aa8e8}
+</style>
+</head>
+<body>
+  <h1>宣传片录制台</h1>
+  <p class="sub">1920×1080 · 15 秒 · 纯品牌动效。录制完成后自动回传到本地服务，暂存为 <code>data/promo.mp4</code>（浏览器不支持 mp4 时退回 <code>data/promo.webm</code>）。</p>
+
+  <div class="stage"><canvas id="cv" width="1920" height="1080"></canvas></div>
+
+  <div class="bar">
+    <button id="btnRec" class="primary">开始录制</button>
+    <button id="btnSave" disabled>保存到 data/</button>
+    <button id="btnDl" disabled>下载到本机</button>
+    <div class="prog"><i id="prog"></i></div>
+    <div class="stat" id="stat">就绪</div>
+  </div>
+  <div class="bar tight">
+    <span class="lbl">画质</span>
+    <button class="seg" data-bps="16000000">高 · 16 Mbps</button>
+    <button class="seg active" data-bps="8000000">中 · 8 Mbps</button>
+    <button class="seg" data-bps="5000000">低 · 5 Mbps</button>
+    <span class="hint2">1920×1080 · 15 秒</span>
+  </div>
+  <div class="err" id="err"></div>
+
+  <div class="card">
+    <h2>当前已保存的宣传片</h2>
+    <div id="savedMeta" class="sub" style="margin:0">读取中…</div>
+    <div id="savedWrap"></div>
+  </div>
+
+<script>
+'use strict';
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d', { alpha: false });
+const W = 1920, H = 1080, FPS = 60, DUR = 15.0;
+const FONT = '"Microsoft YaHei UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",sans-serif';
+
+const C = {
+  bg:'#131519', bg2:'#181b20', panel:'#1c1f26', panel2:'#23262e',
+  border:'#30343d', text:'#eceef2', muted:'#9aa1ad', muted2:'#7e8592',
+  brand:'#ff6a13', deep:'#b8420b', blue:'#4aa8e8'
+};
+
+/* ---------- 缓动 ---------- */
+const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+const seg = (t, a, b) => clamp01((t - a) / (b - a));
+const outCubic = t => 1 - Math.pow(1 - t, 3);
+const inOutCubic = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+const outBack = t => { const c1 = 1.6, c3 = c1 + 1; return 1 + c3*Math.pow(t-1,3) + c1*Math.pow(t-1,2); };
+const mix = (a, b, t) => a + (b - a) * t;
+
+/* ---------- 素材 ---------- */
+const IMGS = {};
+function loadImg(key, src) {
+  return new Promise((res) => {
+    const im = new Image();
+    im.onload = () => { IMGS[key] = im; res(); };
+    im.onerror = () => { IMGS[key] = null; res(); };
+    im.src = src;
+  });
+}
+
+/* ---------- 绘制基元 ---------- */
+function rr(x, y, w, h, r) {
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y,   x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x,   y+h, r);
+  ctx.arcTo(x,   y+h, x,   y,   r);
+  ctx.arcTo(x,   y,   x+w, y,   r);
+  ctx.closePath();
+}
+function txt(str, x, y, o) {
+  o = o || {};
+  ctx.save();
+  ctx.globalAlpha = o.alpha == null ? 1 : clamp01(o.alpha);
+  if (ctx.globalAlpha <= 0.002) { ctx.restore(); return; }
+  ctx.fillStyle = o.color || C.text;
+  ctx.textAlign = o.align || 'left';
+  ctx.textBaseline = o.baseline || 'alphabetic';
+  ctx.font = (o.weight || 700) + ' ' + (o.size || 40) + 'px ' + FONT;
+  try { ctx.letterSpacing = (o.ls || 0) + 'px'; } catch (e) { }
+  if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = o.blur || 30; }
+  ctx.fillText(str, x, y);
+  ctx.restore();
+}
+function mascot(img, cx, baseY, h, alpha, dy) {
+  if (!img || !img.complete || !img.naturalHeight) return;
+  if (alpha <= 0.002) return;
+  const w = h * (img.naturalWidth / img.naturalHeight);
+  ctx.save();
+  ctx.globalAlpha = clamp01(alpha);
+  ctx.shadowColor = 'rgba(184,66,11,.55)';
+  ctx.shadowBlur = 64;
+  ctx.shadowOffsetY = 18;
+  ctx.drawImage(img, cx - w/2, baseY - h + (dy || 0), w, h);
+  ctx.restore();
+}
+
+/* ---------- 背景 ---------- */
+function drawBg(t) {
+  ctx.fillStyle = C.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#191d22');
+  g.addColorStop(.55, '#131519');
+  g.addColorStop(1, '#0e1013');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  const bloom = outCubic(seg(t, 0, 1.5));
+
+  const rg = ctx.createRadialGradient(1450, 330, 30, 1450, 330, 950);
+  rg.addColorStop(0,   'rgba(255,106,19,' + (0.30 * bloom).toFixed(4) + ')');
+  rg.addColorStop(.42, 'rgba(255,106,19,' + (0.10 * bloom).toFixed(4) + ')');
+  rg.addColorStop(1,   'rgba(255,106,19,0)');
+  ctx.fillStyle = rg;
+  ctx.fillRect(0, 0, W, H);
+
+  const rg2 = ctx.createRadialGradient(300, 940, 20, 300, 940, 820);
+  rg2.addColorStop(0, 'rgba(74,168,232,' + (0.13 * bloom).toFixed(4) + ')');
+  rg2.addColorStop(1, 'rgba(74,168,232,0)');
+  ctx.fillStyle = rg2;
+  ctx.fillRect(0, 0, W, H);
+
+  const ga = 0.05 * outCubic(seg(t, .25, 1.7));
+  if (ga > 0.001) {
+    ctx.strokeStyle = 'rgba(255,255,255,' + ga.toFixed(4) + ')';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= W; x += 80) { ctx.beginPath(); ctx.moveTo(x + .5, 0); ctx.lineTo(x + .5, H); ctx.stroke(); }
+    for (let y = 0; y <= H; y += 80) { ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(W, y + .5); ctx.stroke(); }
+  }
+
+  // 缓慢扫过的高光
+  const sweep = -600 + ((t / DUR) * (W + 1200));
+  const sg = ctx.createLinearGradient(sweep - 260, 0, sweep + 260, H);
+  sg.addColorStop(0, 'rgba(255,255,255,0)');
+  sg.addColorStop(.5, 'rgba(255,255,255,.030)');
+  sg.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sg;
+  ctx.fillRect(0, 0, W, H);
+
+  // 暗角
+  const vg = ctx.createRadialGradient(W/2, H/2, 300, W/2, H/2, 1200);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,.55)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+}
+
+/* ---------- 各阶段 ---------- */
+const CARDS = [
+  ['多账号统一管理', '一个界面管好你所有的号'],
+  ['一键批量签到',   '串行执行，风控自动退避'],
+  ['游戏区服查询',   '生死狙击 / 火线精英 等'],
+  ['AES-256-GCM',    '账号密码本地加密存储'],
+];
+
+function drawHero(t) {
+  const p  = seg(t, 1.15, 2.30);
+  if (p <= 0) return;
+  const out = 1 - outCubic(seg(t, 8.90, 9.70));   // 9 秒后让位给下一段
+  if (out <= 0.002) return;
+  const a   = outCubic(seg(t, 1.15, 1.95)) * out;
+  const pop = outBack(p);
+  const bob = Math.sin((t - 1.15) * 1.35) * 9;
+  const away = (1 - out);
+
+  // 豆娃：从下方弹入，淡出时下沉
+  mascot(IMGS.douwa4, 560, 1000, 600, a, mix(160, 0, pop) + away * 46);
+
+  // 标题
+  const tp = outCubic(seg(t, 1.70, 2.55));
+  txt('4399 账号管理器', 1010 + mix(72, 0, tp) + away * 34, 476, { size: 92, weight: 700, ls: 3, alpha: tp * out, color: '#f4f6fa', glow: 'rgba(255,106,19,.42)', blur: 46 });
+
+  // 副标题
+  const sp = outCubic(seg(t, 2.00, 2.85));
+  txt('多账号 · 本地管理 · 数据不出本机', 1014 + mix(56, 0, sp) + away * 26, 570, { size: 38, weight: 500, ls: 2, alpha: sp * out, color: C.muted });
+
+  // 橙色短线
+  const la = outCubic(seg(t, 2.20, 3.00)) * out;
+  if (la > 0.002) {
+    ctx.save();
+    ctx.globalAlpha = la;
+    ctx.fillStyle = C.brand;
+    rr(1014, 614, 150 * la, 5, 3);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawCards(t) {
+  const baseX = 1010, w = 760, h = 84, gap = 20, top = 640;
+  for (let i = 0; i < CARDS.length; i++) {
+    const s = 3.45 + i * 1.32;
+    const p = seg(t, s, s + 0.75);
+    if (p <= 0) continue;
+    const a = outCubic(p);
+    const dx = mix(90, 0, outCubic(p));
+    const y = top + i * (h + gap);
+    const x = baseX + dx;
+
+    // 进入：淡出（9.0s 起）
+    const out = 1 - outCubic(seg(t, 9.05 + i * 0.10, 9.75 + i * 0.10));
+    const alpha = a * out;
+    if (alpha <= 0.002) continue;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = 'rgba(0,0,0,.45)';
+    ctx.shadowBlur = 22;
+    ctx.shadowOffsetY = 6;
+    rr(x, y, w, h, 14);
+    ctx.fillStyle = 'rgba(35,38,46,.94)';
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    rr(x, y, w, h, 14);
+    ctx.strokeStyle = 'rgba(48,52,61,1)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // 左侧橙色竖条
+    rr(x + 1, y + 18, 5, h - 36, 3);
+    ctx.fillStyle = C.brand;
+    ctx.fill();
+    ctx.restore();
+
+    txt(CARDS[i][0], x + 40, y + 42, { size: 33, weight: 700, alpha, color: '#eceef2', ls: 1 });
+    if (CARDS[i][1]) txt(CARDS[i][1], x + 40, y + 73, { size: 21, weight: 400, alpha: alpha * .82, color: C.muted2 });
+  }
+}
+
+function drawStatement(t) {
+  const a = outCubic(seg(t, 9.9, 10.7));
+  if (a <= 0.002) return;
+  const out = 1 - outCubic(seg(t, 12.15, 12.85));
+  const alpha = a * out;
+  if (alpha <= 0.002) return;
+
+  txt('数据不出本机', 960, 452, { size: 116, weight: 700, ls: 8, align: 'center', alpha, color: '#f4f6fa', glow: 'rgba(255,106,19,.5)', blur: 54 });
+
+  // 橙色下划线扫出
+  const uw = 520 * inOutCubic(seg(t, 10.5, 11.4));
+  if (uw > 1) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = C.brand;
+    rr(960 - uw/2, 496, uw, 6, 3);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  const pills = ['仅监听 127.0.0.1', '零第三方依赖', '登录态只存本机'];
+  ctx.font = '600 34px ' + FONT;
+  const widths = pills.map(s => ctx.measureText(s).width + 96);
+  const total = widths.reduce((x, y) => x + y, 0) + 44 * (pills.length - 1);
+  let px = 960 - total / 2;
+  for (let i = 0; i < pills.length; i++) {
+    const pa = outCubic(seg(t, 10.85 + i * 0.18, 11.5 + i * 0.18)) * out;
+    const w = widths[i], h = 78, cy = 610, y = cy - h/2;
+    if (pa > 0.002) {
+      ctx.save();
+      ctx.globalAlpha = pa * a;
+      rr(px, y, w, h, h/2);
+      ctx.fillStyle = 'rgba(35,38,46,.92)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,106,19,.40)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath(); ctx.arc(px + 34, cy, 6, 0, Math.PI*2);
+      ctx.fillStyle = C.brand; ctx.fill();
+      ctx.restore();
+      txt(pills[i], px + 54, cy + 1, { size: 34, weight: 600, alpha: pa * a, color: C.text, baseline: 'middle' });
+    }
+    px += w + 44;
+  }
+}
+
+function drawOutro(t) {
+  const a = outCubic(seg(t, 13.0, 13.8));
+  if (a <= 0.002) return;
+  const fade = 1 - outCubic(seg(t, 14.25, 14.95));
+  const alpha = a * fade;
+
+  const baseY = 1046;
+  const trio = [
+    ['douwa5', 300], ['douwa4', 400], ['douwa6', 320]
+  ];
+  const gap = 90;
+  ctx.font = '700 1px ' + FONT;
+  const widths = trio.map(([k, h]) => {
+    const im = IMGS[k];
+    return (im && im.naturalHeight) ? h * (im.naturalWidth / im.naturalHeight) : h * .8;
+  });
+  const total = widths.reduce((x, y) => x + y, 0) + gap * (trio.length - 1);
+  let x = 960 - total / 2;
+  for (let i = 0; i < trio.length; i++) {
+    const [k, h] = trio[i];
+    const w = widths[i];
+    const bob = Math.sin((t - 13.0) * 1.6 + i * 1.1) * 7;
+    mascot(IMGS[k], x + w/2, baseY, h, alpha, bob);
+    x += w + gap;
+  }
+
+  txt('4399 账号管理器', 960, 386, { size: 76, weight: 700, ls: 6, align: 'center', alpha, color: '#f4f6fa', glow: 'rgba(255,106,19,.45)', blur: 44 });
+  txt('v0.3 · 仅监听本机 · 无第三方依赖', 960, 452, { size: 32, weight: 500, ls: 3, align: 'center', alpha: alpha * .9, color: C.muted });
+}
+
+function drawFrame(t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  drawBg(t);
+  drawHero(t);
+  drawCards(t);
+  drawStatement(t);
+  drawOutro(t);
+  // 首尾各 0.6s 淡入淡出（纯黑压场，便于循环/剪辑）
+  const fadeIn  = outCubic(seg(t, 0, 0.55));
+  const fadeOut = outCubic(seg(t, DUR - 0.55, DUR));
+  const k = Math.min(fadeIn, 1 - fadeOut);
+  if (k < 1) {
+    ctx.fillStyle = 'rgba(0,0,0,' + (1 - k).toFixed(4) + ')';
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+/* ---------- 录制 ---------- */
+const P = { state: 'idle', t: 0, blob: null, mime: '', bytes: 0, error: '' };
+window.__promo = P;
+let BPS = 8000000;   // 默认 8 Mbps
+
+const $ = (id) => document.getElementById(id);
+function setStat(s) { $('stat').innerHTML = s; }
+function setErr(s) { $('err').textContent = s || ''; }
+
+function pickMime() {
+  const list = [
+    'video/mp4;codecs=avc1.640028',
+    'video/mp4;codecs=avc1.42E01E',
+    'video/mp4',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+  ];
+  for (const m of list) {
+    try { if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m; } catch (e) { }
+  }
+  return '';
+}
+
+async function record() {
+  if (P.state === 'recording') return;
+  P.state = 'recording'; P.blob = null; P.error = ''; P.t = 0;
+  $('btnRec').disabled = true; $('btnSave').disabled = true; $('btnDl').disabled = true;
+  setErr('');
+  $('savedWrap').innerHTML = '';
+  setStat('录制中…');
+
+  const mime = pickMime();
+  P.mime = mime;
+  let stream = null, rec = null;
+  try {
+    stream = cv.captureStream(FPS);
+    const opt = { videoBitsPerSecond: BPS };
+    if (mime) opt.mimeType = mime;
+    rec = new MediaRecorder(stream, opt);
+  } catch (e) {
+    P.state = 'error'; P.error = '无法启动录制：' + (e && e.message || e);
+    setErr(P.error); setStat('失败'); $('btnRec').disabled = false;
+    if (stream) stream.getTracks().forEach(x => x.stop());
+    return;
+  }
+
+  const chunks = [];
+  rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  const stopped = new Promise((res) => { rec.onstop = () => res(); });
+
+  rec.start(250);
+
+  const t0 = performance.now();
+  await new Promise((res) => {
+    function loop(now) {
+      const t = Math.min(DUR, (now - t0) / 1000);
+      P.t = t;
+      drawFrame(t);
+      $('prog').style.width = (t / DUR * 100).toFixed(1) + '%';
+      setStat('录制中… <b>' + t.toFixed(1) + 's</b> / ' + DUR + 's');
+      if (t >= DUR) return res();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  });
+
+  try { rec.stop(); } catch (e) { }
+  await stopped;
+  try { stream.getTracks().forEach(x => x.stop()); } catch (e) { }
+
+  const type = rec.mimeType || mime || 'video/webm';
+  P.blob = new Blob(chunks, { type });
+  P.bytes = P.blob.size;
+  P.mime = type;
+  P.state = 'done';
+
+  $('prog').style.width = '100%';
+  setStat('录制完成 · <b>' + (P.bytes / 1048576).toFixed(1) + ' MB</b> · ' + type);
+  $('btnRec').disabled = false;
+  $('btnRec').textContent = '重新录制';
+  $('btnSave').disabled = false;
+  $('btnDl').disabled = false;
+
+  const url = URL.createObjectURL(P.blob);
+  $('savedWrap').innerHTML = '<video src="' + url + '" controls autoplay loop muted playsinline></video>';
+}
+
+async function save() {
+  if (!P.blob) return;
+  $('btnSave').disabled = true;
+  setStat('回传中…');
+  try {
+    const r = await fetch('/api/promo', {
+      method: 'POST',
+      headers: { 'Content-Type': P.mime || 'video/webm' },
+      body: P.blob,
+    });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.message || '保存失败');
+    setStat('已保存 · <b>' + j.name + '</b> · ' + (j.bytes / 1048576).toFixed(1) + ' MB');
+    loadSaved();
+  } catch (e) {
+    setErr('回传失败：' + (e && e.message || e));
+    setStat('回传失败');
+  }
+  $('btnSave').disabled = false;
+}
+
+function download() {
+  if (!P.blob) return;
+  const ext = /mp4/i.test(P.mime) ? 'mp4' : 'webm';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(P.blob);
+  a.download = '4399-manager-promo.' + ext;
+  a.click();
+}
+
+async function loadSaved() {
+  try {
+    const r = await fetch('/api/promo');
+    const j = await r.json();
+    if (!j.exists) { $('savedMeta').textContent = 'data/ 下还没有宣传片。'; $('savedWrap').innerHTML = ''; return; }
+    $('savedMeta').textContent = j.name + ' · ' + (j.bytes / 1048576).toFixed(1) + ' MB · ' + new Date(j.at).toLocaleString();
+    $('savedWrap').innerHTML = '<video src="/media/promo" controls loop muted playsinline></video>';
+  } catch (e) {
+    $('savedMeta').textContent = '读取失败：' + (e && e.message || e);
+  }
+}
+
+$('btnRec').addEventListener('click', record);
+$('btnSave').addEventListener('click', save);
+$('btnDl').addEventListener('click', download);
+Array.prototype.forEach.call(document.querySelectorAll('.seg'), (b) => {
+  b.addEventListener('click', () => {
+    Array.prototype.forEach.call(document.querySelectorAll('.seg'), (x) => x.classList.remove('active'));
+    b.classList.add('active');
+    BPS = Number(b.getAttribute('data-bps')) || 8000000;
+  });
+});
+
+(async function init() {
+  setStat('加载素材…');
+  await Promise.all([
+    loadImg('douwa4', '/theme/4399/douwa4.png'),
+    loadImg('douwa5', '/theme/4399/douwa5.png'),
+    loadImg('douwa6', '/theme/4399/douwa6.png'),
+  ]);
+  drawFrame(2.75);
+  setStat('就绪 · 素材已加载');
+  P.state = 'ready';
+  loadSaved();
+})();
+</script>
+</body>
+</html>

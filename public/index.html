@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="theme-4399" data-accent="4399">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>4399 账号管理器</title>
+  <script>
+    // 尽早应用主题，避免首屏闪烁
+    (function () {
+      try {
+        var s = JSON.parse(localStorage.getItem('4399.theme') || '{}');
+        var id = (s.accent === 'tohru' || s.accent === 'starry') ? s.accent : '4399';
+        document.documentElement.classList.add('theme-' + id);
+        document.documentElement.setAttribute('data-accent', id);
+      } catch (e) { }
+    })();
+    // 启动动画：默认每个浏览器会话只播一次，可在「设置 · 外观」切换
+    (function () {
+      try {
+        var s = JSON.parse(localStorage.getItem('4399.splash') || '{}');
+        var mode = s.mode || 'session';           // session | always | off
+        var seen = false;
+        try { seen = sessionStorage.getItem('4399.splashShown') === '1'; } catch (e) { }
+        var show = mode !== 'off' && (mode === 'always' || !seen);
+        if (show) { try { sessionStorage.setItem('4399.splashShown', '1'); } catch (e) { } }
+        else document.documentElement.classList.add('no-splash');
+      } catch (e) { document.documentElement.classList.add('no-splash'); }
+    })();
+  </script>
+  <style>
+    /* 启动动画：内联关键样式，避免等待 style.css 造成闪烁 */
+    #splash {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px; overflow: hidden;
+      background:
+        radial-gradient(1100px 640px at 50% 44%, var(--accent-soft-2, rgba(255, 106, 19, .10)), transparent 70%),
+        #05070a;
+      color: #e9eef7;
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      transition: opacity .6s ease, visibility .6s ease;
+    }
+    html.no-splash #splash { display: none !important; }
+    #splash.done { opacity: 0; visibility: hidden; pointer-events: none; }
+    /* 网格底纹 + 扫描光带 */
+    #splash .sp-grid {
+      position: absolute; inset: 0; pointer-events: none; opacity: .55;
+      background-image:
+        linear-gradient(rgba(127, 145, 175, .10) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(127, 145, 175, .10) 1px, transparent 1px);
+      background-size: 46px 46px;
+      -webkit-mask-image: radial-gradient(circle at 50% 46%, #000 0%, transparent 70%);
+      mask-image: radial-gradient(circle at 50% 46%, #000 0%, transparent 70%);
+      animation: spGrid 24s linear infinite;
+    }
+    #splash .sp-scan {
+      position: absolute; left: 0; right: 0; height: 40%; top: -40%; pointer-events: none;
+      background: linear-gradient(180deg, transparent, var(--accent-soft-2, rgba(109, 139, 255, .09)), transparent);
+      animation: spScan 4.2s cubic-bezier(.5, 0, .5, 1) infinite;
+    }
+    #splash .sp-corner {
+      position: absolute; width: 26px; height: 26px; pointer-events: none;
+      border: 1px solid var(--accent-border, rgba(109, 139, 255, .34)); opacity: .85;
+      animation: spFade .8s .3s both;
+    }
+    #splash .sp-corner.tl { top: 22px; left: 22px; border-right: 0; border-bottom: 0; }
+    #splash .sp-corner.tr { top: 22px; right: 22px; border-left: 0; border-bottom: 0; }
+    #splash .sp-corner.bl { bottom: 22px; left: 22px; border-right: 0; border-top: 0; }
+    #splash .sp-corner.br { bottom: 22px; right: 22px; border-left: 0; border-top: 0; }
+    #splash .sp-core { position: relative; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+    #splash .sp-mark {
+      position: relative; width: 86px; height: 86px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 23px; font-weight: 800; letter-spacing: -1px; color: #fff;
+      background: linear-gradient(135deg, var(--accent, #6d8bff), var(--accent-2, #43d9c8));
+      box-shadow: 0 20px 48px var(--accent-glow, rgba(109, 139, 255, .40));
+      clip-path: polygon(0 15px, 15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%);
+      animation: spPop .72s cubic-bezier(.2, .85, .3, 1) both;
+    }
+    #splash .sp-mark::after {
+      content: ''; position: absolute; inset: -11px; pointer-events: none;
+      border: 1px solid var(--accent, #6d8bff);
+      clip-path: polygon(0 13px, 13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%);
+      animation: spRing 2s ease-out infinite;
+    }
+    #splash .sp-title { font-size: 15px; font-weight: 700; letter-spacing: 6px; text-indent: 6px; animation: spUp .55s .16s both; }
+    #splash .sp-tag {
+      font-size: 10px; letter-spacing: 3.6px; text-indent: 3.6px; text-transform: uppercase;
+      opacity: .42; animation: spUp .55s .24s both;
+    }
+    #splash .sp-foot {
+      position: absolute; left: 50%; bottom: 13%; transform: translateX(-50%);
+      width: min(420px, 76vw); display: flex; flex-direction: column; gap: 9px;
+      animation: spUp .55s .32s both;
+    }
+    #splash .sp-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 10.5px; letter-spacing: 1.5px; text-transform: uppercase;
+      opacity: .62; font-variant-numeric: tabular-nums;
+    }
+    #splash .sp-track { position: relative; height: 2px; background: rgba(127, 145, 175, .22); overflow: hidden; }
+    #splash .sp-fill {
+      position: absolute; top: 0; bottom: 0; left: 0; width: 0%;
+      background: linear-gradient(90deg, var(--accent, #6d8bff), var(--accent-2, #43d9c8));
+      box-shadow: 0 0 14px var(--accent-glow, rgba(109, 139, 255, .5));
+      transition: width .5s cubic-bezier(.2, .8, .3, 1);
+    }
+    #splash .sp-track::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .55), transparent);
+      transform: translateX(-100%); animation: spSheen 1.7s linear infinite;
+    }
+    @keyframes spGrid { to { background-position: 46px 46px, 46px 46px; } }
+    @keyframes spScan { 0% { top: -40%; } 100% { top: 100%; } }
+    @keyframes spSheen { to { transform: translateX(100%); } }
+    @keyframes spPop { from { opacity: 0; transform: scale(.8) translateY(12px); } to { opacity: 1; transform: none; } }
+    @keyframes spUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes spFade { from { opacity: 0; } to { opacity: .85; } }
+    @keyframes spRing { 0% { transform: scale(.94); opacity: .55; } 100% { transform: scale(1.26); opacity: 0; } }
+    @media (max-width: 560px) {
+      #splash .sp-mark { width: 70px; height: 70px; font-size: 19px; }
+      #splash .sp-title { font-size: 13px; letter-spacing: 4px; text-indent: 4px; }
+      #splash .sp-corner { width: 18px; height: 18px; }
+    }
+  </style>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="splash" aria-hidden="true">
+    <span class="sp-corner tl"></span><span class="sp-corner tr"></span>
+    <span class="sp-corner bl"></span><span class="sp-corner br"></span>
+    <div class="sp-grid"></div>
+    <div class="sp-scan"></div>
+    <div class="sp-core">
+      <div class="sp-mark">4399</div>
+      <div class="sp-title">4399 账号管理器</div>
+      <div class="sp-tag">Local Account Console</div>
+    </div>
+    <div class="sp-foot">
+      <div class="sp-meta"><span class="sp-status">正在初始化…</span><span class="sp-pct">0%</span></div>
+      <div class="sp-track"><i class="sp-fill"></i></div>
+    </div>
+  </div>
+  <div class="layout">
+    <!-- ---------- 侧边栏 ---------- -->
+    <aside class="sidebar">
+      <div class="side-brand">
+        <span class="logo">4399</span>
+        <div class="brand-txt">
+          <strong>账号管理器</strong>
+          <span>本地运行 · 数据不出本机</span>
+        </div>
+      </div>
+
+      <nav class="side-nav" id="sideNav">
+        <span class="nav-ind" id="navInd"></span>
+        <button class="nav-item active" id="navAccounts" data-tip="查看全部账号总览">
+          <span class="nav-ico ico-slot" data-ico="grid"></span> 账号总览
+        </button>
+        <button class="nav-item" id="navGroups" data-tip="分组页：按分组预览账号、批量移动整理">
+          <span class="nav-ico ico-slot" data-ico="folder"></span> 分组
+        </button>
+        <button class="nav-item" id="navVault" data-tip="本地账号库：批量导入的账号密码，可批量登录 / 改备注 / 复制 / 导出 / 删除">
+          <span class="nav-ico ico-slot" data-ico="shield"></span> 本地账号库
+        </button>
+        <button class="nav-item" id="navAdd" data-tip="用账号密码登录并添加一个 4399 账号（登录态只存本机）">
+          <span class="nav-ico ico-slot" data-ico="plus"></span> 添加账号
+        </button>
+        <button class="nav-item" id="navRegister" data-tip="注册一个新的 4399 账号（需真实姓名 + 身份证）">
+          <span class="nav-ico ico-slot" data-ico="pencil"></span> 注册账号
+        </button>
+        <button class="nav-item" id="navLinks" data-tip="4399 常用官方页面快捷入口（安全中心 / 充值 / 客服等）">
+          <span class="nav-ico ico-slot" data-ico="external"></span> 快捷入口
+        </button>
+        <button class="nav-item" id="navSettings" data-tip="设置：外观 / 音乐组件 / 辅助账号 / 数据 / 调试工具">
+          <span class="nav-ico ico-slot" data-ico="settings"></span> 设置
+        </button>
+      </nav>
+    </aside>
+
+    <!-- ---------- 主内容 ---------- -->
+    <main class="content">
+      <header class="topbar">
+        <img class="hero-art" id="heroArt" src="/theme/tohru/kv-tohru.png" alt="" aria-hidden="true">
+        <div class="page-title">
+          <h1 id="pageTitle">账号总览</h1>
+          <p class="sub" id="pageSub">集中管理你的 4399 账号信息、签到与游戏角色</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn ghost" id="themeBtn" data-tip="外观设置：主题配色 / 启动动画"><span class="ico-slot" data-ico="palette"></span> 外观</button>
+          <span class="badge" id="connBadge"><span class="ico-slot" data-ico="dot"></span> 本地运行</span>
+        </div>
+      </header>
+
+      <div class="page" id="pageAccounts">
+      <section class="stats-row" id="statsRow"></section>
+
+      <section class="panel accounts-panel">
+        <div class="panel-head">
+          <h2>我的账号 <span id="accCount" class="count">0</span></h2>
+          <div class="panel-tools">
+            <input id="searchBox" type="text" placeholder="搜索昵称 / UID / 备注…" autocomplete="off">
+            <button class="btn ghost" id="refreshAllBtn" data-tip="依次刷新所有账号的资料">全部刷新</button>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <div class="flt"><span class="flt-k">分组</span><div class="flt-sel" id="fltGroupBox"></div></div>
+          <div class="flt"><span class="flt-k">IP 属地</span><div class="flt-sel" id="fltIpBox"></div></div>
+          <div class="flt"><span class="flt-k">排序</span><div class="flt-sel" id="fltSortBox"></div></div>
+          <button class="btn ghost tiny" id="fltReset" data-tip="清空筛选与排序条件">重置筛选</button>
+          <label class="flt-check" data-tip="选中当前列表中的全部账号"><input type="checkbox" id="selectAll"> 全选</label>
+        </div>
+        <div class="bulk-bar" id="bulkBar" hidden>
+          <span class="bulk-info">已选 <b id="bulkCount">0</b> 个</span>
+          <div class="bulk-acts">
+            <button class="btn tiny" id="bulkMove" data-tip="把选中账号移动到指定分组">移动到分组</button>
+            <button class="btn tiny" id="bulkRefresh" data-tip="依次刷新选中账号的资料">批量刷新</button>
+            <button class="btn tiny danger" id="bulkDelete" data-tip="删除选中账号的本地登录态（不影响 4399 账号）">批量删除</button>
+          </div>
+        </div>
+        <div id="accounts" class="accounts"></div>
+        <div id="emptyState" class="empty">还没有账号，点左侧「添加账号」登录一个吧 <span class="ico-slot" data-ico="arrowLeft"></span></div>
+      </section>
+
+      </div><!-- /pageAccounts -->
+
+      <!-- ================= 分组页（独立页面 · 云盘式） ================= -->
+      <div class="page" id="pageGroups" hidden>
+        <div class="gd-wrap">
+          <aside class="gd-side">
+            <div class="gd-side-head">
+              <span class="gd-side-title">分组</span>
+              <button class="mini-btn" id="gdNewFolder" data-tip="新建分组"><span class="ico-slot" data-ico="plus"></span></button>
+            </div>
+            <div class="gd-tree" id="gdTree"></div>
+          </aside>
+          <section class="gd-main">
+            <div class="gd-bar">
+              <nav class="gd-crumb" id="gdCrumb"></nav>
+              <div class="gd-tools">
+                <label class="gd-search">
+                  <span class="ico-slot" data-ico="search"></span>
+                  <input id="gdSearch" type="text" placeholder="在本分组内搜索…" autocomplete="off">
+                </label>
+                <div class="seg-group gd-view" id="gdView">
+                  <button class="seg active" data-view="grid" data-tip="网格视图"><span class="ico-slot" data-ico="grid"></span></button>
+                  <button class="seg" data-view="list" data-tip="列表视图"><span class="ico-slot" data-ico="list"></span></button>
+                </div>
+                <button class="btn ghost tiny" id="gdSelectAll" data-tip="全选 / 取消全选当前分组的账号">全选</button>
+                <button class="btn ghost tiny" id="gdNewFolder2"><span class="ico-slot" data-ico="plus"></span> 新建分组</button>
+              </div>
+            </div>
+            <div class="gd-body" id="gdBody"></div>
+          </section>
+        </div>
+        <div class="gd-bulk" id="gdBulk" hidden>
+          <span class="bulk-info">已选 <b id="gdCount">0</b> 个</span>
+          <div class="bulk-acts">
+            <button class="btn tiny" id="gdMove" data-tip="把选中账号移动到指定分组">移动到分组</button>
+            <button class="btn tiny" id="gdRemove" data-tip="把选中账号移出当前分组（移到未分组）">移出分组</button>
+            <button class="btn tiny danger" id="gdDelete" data-tip="删除选中账号的本地登录态（不影响 4399 账号）">批量删除</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= 本地账号库（独立页面 · 表格 + 批量操作） ================= -->
+      <div class="page" id="pageVault" hidden>
+        <section class="panel vault-panel">
+          <div class="panel-head">
+            <h2>本地账号库 <span id="vaultCount" class="count">0</span></h2>
+            <div class="panel-tools">
+              <input id="vaultSearch" type="text" placeholder="搜索账号 / 备注…" autocomplete="off">
+              <button class="btn ghost" id="vaultRevealBtn" data-tip="一次显示 / 隐藏列表里的全部密码"><span class="ico-slot" data-ico="eye"></span> 显示密码</button>
+              <button class="btn ghost" id="vaultExportAll" data-tip="把当前列表（含筛选 / 排序结果）导出为 txt"><span class="ico-slot" data-ico="download"></span> 导出全部</button>
+              <button class="btn primary" id="vaultImportBtn" data-tip="从文本文件或粘贴的文本里批量提取账号密码"><span class="ico-slot" data-ico="upload"></span> 批量导入</button>
+            </div>
+          </div>
+          <p class="vault-tip">从你自己的文本里提取出来的「账号 + 密码」，只保存在本机 <code>data/vault.json</code>，不会上传。<b>密码以 AES-256-GCM 加密后落盘</b>（密钥单独存于 <code>data/vault.key</code>，不进备份）。账号库与 4399 账号列表相互独立：这里只保存账号密码，登录态仍在「账号总览」里。</p>
+
+          <div class="bulk-bar vault-bulk idle" id="vaultBulkBar">
+            <span class="bulk-info">已选 <b id="vaultSelCount">0</b> 个<span class="bulk-hint" id="vaultBulkHint"> · 勾选行首复选框即可批量操作</span></span>
+            <div class="bulk-acts">
+              <button class="btn tiny" id="vaultBatchLogin" data-tip="串行自动登录选中账号，可自定义间隔；遇 4399 风控会自动停止"><span class="ico-slot" data-ico="play"></span> 批量登录</button>
+              <button class="btn tiny" id="vaultBatchNote" data-tip="给选中条目统一设置导入备注"><span class="ico-slot" data-ico="note"></span> 批量改备注</button>
+              <button class="btn tiny" id="vaultBatchCopy" data-tip="复制成「账号 + 密码」，每行一条"><span class="ico-slot" data-ico="copy"></span> 批量复制</button>
+              <button class="btn tiny" id="vaultBatchExport" data-tip="把选中条目导出为 txt"><span class="ico-slot" data-ico="download"></span> 批量导出</button>
+              <button class="btn tiny danger" id="vaultBatchDelete" data-tip="从本地账号库删除选中条目（不影响 4399 账号）"><span class="ico-slot" data-ico="trash"></span> 批量删除</button>
+            </div>
+          </div>
+
+          <div class="vt-tablewrap">
+            <table class="vt-table" id="vaultTable">
+              <thead>
+                <tr>
+                  <th class="vt-c-chk"><label class="vt-chk" data-tip="全选 / 取消全选当前列表"><input type="checkbox" id="vaultSelectAll" aria-label="全选"></label></th>
+                  <th class="vt-sortable vt-c-user" data-sort="username"><span>账号</span><i class="vt-arrow"></i></th>
+                  <th class="vt-sortable vt-c-pass" data-sort="password"><span>密码</span><i class="vt-arrow"></i></th>
+                  <th class="vt-sortable vt-c-note" data-sort="note"><span>导入备注</span><i class="vt-arrow"></i></th>
+                  <th class="vt-sortable vt-c-time" data-sort="createdAt"><span>导入时间</span><i class="vt-arrow"></i></th>
+                  <th class="vt-c-act">操作</th>
+                </tr>
+              </thead>
+              <tbody id="vaultBody"></tbody>
+            </table>
+          </div>
+          <div id="vaultEmpty" class="empty" hidden>还没有本地保存的账号，点右上角「批量导入」从文本里提取 <span class="ico-slot" data-ico="arrowUp"></span></div>
+        </section>
+      </div>
+
+      <footer class="foot">第三方本地工具 · 与 4399 官方无关 · 请遵守平台服务条款</footer>
+    </main>
+  </div>
+
+  <!-- ---------- 登录模态框 ---------- -->
+  <div id="loginModal" class="modal" hidden>
+    <div class="modal-box narrow auth-box">
+      <button class="auth-close" id="loginClose" aria-label="关闭" data-tip="关闭"><span class="ico-slot" data-ico="x"></span></button>
+      <div class="auth-head">
+        <span class="auth-logo">4399</span>
+        <h3 class="auth-title">登录 4399 账号</h3>
+        <p class="auth-sub">登录态只保存在本机 · 密码不保存</p>
+      </div>
+      <div class="modal-body auth-body">
+        <form id="loginForm" autocomplete="off">
+          <div class="auth-field">
+            <label class="auth-k" for="username">4399 用户名</label>
+            <div class="auth-input">
+              <span class="auth-ico ico-slot" data-ico="user"></span>
+              <input id="username" type="text" autocomplete="username" placeholder="请输入 4399 用户名">
+            </div>
+          </div>
+          <div class="auth-field">
+            <label class="auth-k" for="password">密码</label>
+            <div class="auth-input">
+              <span class="auth-ico ico-slot" data-ico="lock"></span>
+              <input id="password" type="password" autocomplete="current-password" placeholder="请输入密码">
+              <button type="button" class="auth-eye" id="pwEye" aria-label="显示密码" data-tip="显示 / 隐藏密码"></button>
+            </div>
+          </div>
+          <div class="auth-field" id="captchaRow" hidden>
+            <label class="auth-k" for="captcha">验证码</label>
+            <div class="captcha-box">
+              <div class="auth-input">
+                <span class="auth-ico ico-slot" data-ico="shield"></span>
+                <input id="captcha" type="text" placeholder="请输入验证码" maxlength="6" autocomplete="off">
+              </div>
+              <img id="captchaImg" alt="验证码" title="点击刷新">
+            </div>
+          </div>
+          <p class="hint tiny" id="ocrHint" hidden></p>
+          <label class="auth-check" data-tip="用本机 OCR 自动识别 4399 验证码，识别不出会自动退回手动输入">
+            <input type="checkbox" id="autoCaptcha" checked> 自动识别验证码
+          </label>
+          <div class="auth-actions">
+            <button type="submit" class="btn primary auth-submit" id="loginBtn">登 录</button>
+            <button type="button" class="btn ghost auth-cancel" id="cancelLoginBtn" hidden>取消</button>
+          </div>
+        </form>
+        <p class="auth-note">密码会用 AES-256-GCM 加密保存进<strong>本地账号库</strong>（仅存本机），方便以后批量登录；登录态写入本地 <code>data/accounts.json</code>。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---------- 注册账号模态框 ---------- -->
+  <div id="regModal" class="modal" hidden>
+    <div class="modal-box narrow auth-box">
+      <button class="auth-close" id="regClose" aria-label="关闭" data-tip="关闭"><span class="ico-slot" data-ico="x"></span></button>
+      <div class="auth-head">
+        <span class="auth-logo">4399</span>
+        <h3 class="auth-title">注册 4399 账号</h3>
+        <p class="auth-sub">需通过 4399 实名认证 · 密码不保存</p>
+      </div>
+      <div class="modal-body auth-body">
+        <form id="regForm" autocomplete="off">
+          <div class="auth-sec">账号信息</div>
+          <div class="auth-field">
+            <label class="auth-k" for="regUser">用户名</label>
+            <div class="auth-input">
+              <span class="auth-ico ico-slot" data-ico="user"></span>
+              <input id="regUser" type="text" placeholder="3-20 位字母 / 数字 / 下划线" autocomplete="off">
+            </div>
+          </div>
+          <div class="auth-field">
+            <label class="auth-k" for="regPwd">密码</label>
+            <div class="auth-input">
+              <span class="auth-ico ico-slot" data-ico="lock"></span>
+              <input id="regPwd" type="password" placeholder="6-20 位" autocomplete="new-password">
+              <button type="button" class="auth-eye" id="regPwEye" aria-label="显示密码" data-tip="显示 / 隐藏密码"></button>
+            </div>
+          </div>
+          <div class="auth-field">
+            <label class="auth-k" for="regQq">QQ（选填）</label>
+            <div class="auth-input">
+              <span class="auth-ico ico-slot" data-ico="at"></span>
+              <input id="regQq" type="text" placeholder="可不填" autocomplete="off">
+            </div>
+          </div>
+          <div class="auth-sec">实名信息</div>
+          <div class="auth-field">
+            <label class="auth-k" for="regName">真实姓名</label>
+            <div class="auth-input">
+              <span class="auth-ico ico-slot" data-ico="idcard"></span>
+              <input id="regName" type="text" placeholder="用于 4399 实名认证" autocomplete="off">
+            </div>
+          </div>
+          <div class="auth-field">
+            <label class="auth-k" for="regId">身份证号</label>
+            <div class="auth-input">
+              <span class="auth-ico ico-slot" data-ico="shield"></span>
+              <input id="regId" type="text" placeholder="18 位身份证号" maxlength="18" autocomplete="off">
+            </div>
+          </div>
+          <div class="auth-field" id="regCaptchaRow" hidden>
+            <label class="auth-k" for="regCaptcha">验证码</label>
+            <div class="captcha-box">
+              <div class="auth-input">
+                <span class="auth-ico ico-slot" data-ico="shield"></span>
+                <input id="regCaptcha" type="text" placeholder="请输入验证码" maxlength="6" autocomplete="off">
+              </div>
+              <img id="regCaptchaImg" alt="验证码" title="点击刷新">
+            </div>
+          </div>
+          <p class="hint tiny" id="regHint" hidden></p>
+          <div class="auth-actions">
+            <button type="submit" class="btn primary auth-submit" id="regBtn">注 册</button>
+            <button type="button" class="btn ghost auth-cancel" id="regCancelBtn" hidden>取消</button>
+          </div>
+        </form>
+        <p class="auth-note">注册需通过 4399 实名认证（真实姓名 + 身份证），每个身份证能绑定的账号数量有限。密码<strong>不会保存</strong>。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---------- 实名信息查询模态框 ---------- -->
+  <div id="rnModal" class="modal" hidden>
+    <div class="modal-box narrow">
+      <div class="modal-head">
+        <h3>实名信息查询</h3>
+        <button class="btn ghost" id="rnClose">关闭</button>
+      </div>
+      <div class="modal-body">
+        <div class="rn-helper">
+          <div class="rn-helper-head">辅助账号（用于接收验证消息）</div>
+          <div class="rn-helper-state" id="rnHelperState">加载中…</div>
+          <div class="form-actions">
+            <button class="btn ghost tiny" id="rnGotoSettings">前往设置配置辅助账号</button>
+          </div>
+        </div>
+        <div id="rnResult" class="rn-result"></div>
+        <div class="form-actions">
+          <button class="btn primary" id="rnQueryBtn">查询实名信息</button>
+        </div>
+        <p class="hint">流程：先查 4399 是否已有绑定（<strong>已绑定过就直接秒出，不用重发验证消息</strong>）；没有绑定才向辅助账号发一条验证消息，由辅助账号确认归属后回传。拿到实名后会<strong>自动解除占用</strong>（等同于监护平台的「重新申请」），不把账号留在申请状态；结果本地缓存 <strong>24 小时</strong>，期间直接读缓存，不用再发验证消息。4399 返回的是<strong>脱敏数据</strong>（如 <code>朱*</code> / <code>3*******4</code>）。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---------- 通用模态框（历史 / 区服） ---------- -->
+  <div id="modal" class="modal" hidden>
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3 id="modalTitle">标题</h3>
+        <button class="btn ghost" id="modalClose">关闭</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- ---------- 悬浮音乐组件（左下角 · 鼠标悬浮自动展开） ---------- -->
+  <div class="music-widget" id="musicWidget">
+    <div class="mw-head" id="mwHead" data-tip="网易云音乐 · 鼠标悬浮自动展开">
+      <span class="mw-ico ico-slot" data-ico="music"></span>
+      <span class="mw-song" id="mwSong">网易云音乐</span>
+      <button class="mw-collapse" id="mwCollapse" aria-label="固定展开" data-tip="固定 / 取消固定面板"><span class="ico-slot" data-ico="chevronDown"></span></button>
+    </div>
+    <div class="mw-body" id="mwBody">
+      <div class="mw-now">
+        <div class="mw-cover" id="mwCover"><span class="mw-cover-ph ico-slot" data-ico="music"></span></div>
+        <div class="mw-meta">
+          <div class="mw-line"><span class="mw-title" id="mwTitle">未播放</span><span class="mw-artist" id="mwArtist"></span></div>
+          <div class="mw-prog"><div class="mw-prog-fill" id="mwProgFill"></div></div>
+          <div class="mw-time"><span id="mwCur">0:00</span><span id="mwDur">--:--</span></div>
+        </div>
+      </div>
+      <div class="mw-ctrl">
+        <button class="mw-btn" id="mwPrev" data-tip="上一首"><span class="ico-slot" data-ico="skipBack"></span></button>
+        <button class="mw-btn primary" id="mwPlay" data-tip="播放 / 暂停"><span class="ico-slot" data-ico="play"></span></button>
+        <button class="mw-btn" id="mwNext" data-tip="下一首"><span class="ico-slot" data-ico="skipForward"></span></button>
+        <button class="mw-btn" id="mwShuffle" data-tip="随机播放"><span class="ico-slot" data-ico="shuffle"></span></button>
+      </div>
+      <div class="mw-link">
+        <input id="mwLink" type="text" placeholder="粘贴网易云歌曲 / 歌单链接" autocomplete="off">
+        <button class="mw-btn" id="mwLoad" data-tip="载入链接">载入</button>
+      </div>
+      <div class="mw-engine" aria-hidden="true"><iframe id="mwFrame" allow="autoplay" scrolling="no" title="网易云播放引擎"></iframe></div>
+    </div>
+  </div>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

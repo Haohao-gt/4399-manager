@@ -1,0 +1,25 @@
+# 默认：Git 自动识别文本文件并做换行归一化
+* text=auto
+
+# 源码
+*.js   text
+*.css  text
+*.html text
+*.json text
+*.md   text
+*.cs   text
+
+# Windows 批处理必须是 CRLF，否则双击可能异常
+*.bat  text eol=crlf
+
+# 二进制素材（禁止当文本 diff / 转换）
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.mp4  binary
+*.webm binary
+*.dll  binary
+*.exe  binary
