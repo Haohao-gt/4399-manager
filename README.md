@@ -8,6 +8,8 @@
 ![deps](https://img.shields.io/badge/dependencies-0-brightgreen)
 ![platform](https://img.shields.io/badge/platform-Windows-2f6fdb)
 
+**交流 QQ 群 · 982584509**
+
 </div>
 
 ## 项目介绍
