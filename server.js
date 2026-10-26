@@ -1373,7 +1373,7 @@ const server = http.createServer(async (req, res) => {
         try { author = os.userInfo().username || '—'; } catch (e) { }
         return sendJson(res, 200, {
           name: '4399 账号管理器',
-          version: 'v0.3',
+          version: 'v1.0.0',
           host: HOST,
           address: 'http://' + HOST + ':' + PORT,
           author,

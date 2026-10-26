@@ -7,6 +7,7 @@
 ![Node](https://img.shields.io/badge/Node.js-18%2B-3c873a)
 ![deps](https://img.shields.io/badge/dependencies-0-brightgreen)
 ![platform](https://img.shields.io/badge/platform-Windows-2f6fdb)
+![release](https://img.shields.io/badge/release-v1.0.0-ff6a13)
 
 **交流 QQ 群 · 982584509**
 
@@ -99,7 +100,7 @@
 ## 快速开始
 
 1. 安装 [Node.js](https://nodejs.org/zh-cn)（18 或更高版本）
-2. 下载并解压本项目
+2. 下载并解压本项目 —— **推荐直接下载发布版**：[最新版本 Releases](https://github.com/Haohao-gt/4399-manager/releases/latest) → 下载 `4399-manager-v*.zip`
 3. 双击 **`启动4399管理器.bat`**
 
 服务只绑定 `127.0.0.1:8790`，浏览器会自动打开。
