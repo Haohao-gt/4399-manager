@@ -1,0 +1,58 @@
+{
+  "name": "4399-manager-desktop",
+  "productName": "4399账号管理器",
+  "version": "1.1.0",
+  "private": true,
+  "description": "4399 账号管理器 · 桌面版（Electron 外壳）",
+  "author": "Haohao",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.haohao.a4399manager",
+    "productName": "4399账号管理器",
+    "copyright": "第三方本地工具 · 与 4399 官方无关",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "..",
+        "to": "app",
+        "filter": [
+          "server.js",
+          "lib/**/*",
+          "public/**/*",
+          "tools/**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "portable": {
+      "artifactName": "4399-manager-${version}-portable.exe",
+      "unpackDirName": "4399Manager"
+    }
+  }
+}

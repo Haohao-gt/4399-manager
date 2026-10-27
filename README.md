@@ -7,7 +7,7 @@
 ![Node](https://img.shields.io/badge/Node.js-18%2B-3c873a)
 ![deps](https://img.shields.io/badge/dependencies-0-brightgreen)
 ![platform](https://img.shields.io/badge/platform-Windows-2f6fdb)
-![release](https://img.shields.io/badge/release-v1.0.0-ff6a13)
+![release](https://img.shields.io/badge/release-v1.1.0-ff6a13)
 
 **交流 QQ 群 · 982584509**
 
@@ -49,6 +49,8 @@
 |---|---|
 | **后端** | Node.js 原生 `http` / `fs` / `path` / `child_process` / `crypto`，单文件 `server.js` + `lib/`，无构建步骤 |
 | **前端** | 原生 HTML + CSS + ES2020 JavaScript，无框架、无打包器，静态文件直接由后端服务 |
+| **桌面壳** | `public/ntqq.css` 覆盖层 + `public/shell.js`，把原页面包进「标题栏 / 图标栏 / 会话列表 / 内容区」四段式；不侵入原有页面逻辑，只在 `renderAccounts()` 末尾同步一次会话列表 |
+| **桌面版** | `desktop/` 下的 Electron 外壳：无边框窗口 + `preload.js` 只暴露窗口控制；服务端用 `ELECTRON_RUN_AS_NODE` 子进程托管，端口被占用时自动复用或顺延 |
 | **登录协议** | 走 4399 网页 OAuth（`ptlogin.4399.com/oauth2/authorize.do` → `loginAndAuthorize.do`），手写 CookieJar 维护会话 |
 | **网络层** | 自实现极简 HTTP 客户端（重定向跟随、multipart 上传、指数退避重试）；登录类请求不重试，避免重复提交 |
 | **数据存储** | 本地 JSON 文件（`data/`）。账号登录态明文保存，账号密码用 **AES-256-GCM** 加密，单密钥 + 每行随机 IV |
@@ -85,6 +87,7 @@
 
 ### 界面
 
+- **NTQQ 风格桌面壳**：自绘标题栏 + 左侧图标栏 + 中间「账号会话列表」+ 右侧内容区；会话行支持置顶、右键菜单（复制账号 / UID、刷新资料、安全概览、编辑资料、备注分组、重新登录），点一行就只看这一个账号
 - **三套深色主题**：4399（石墨底 + 品牌橙）、小林家的龙女仆（托尔）、梵高「星空」
 - 音乐组件：网易云官方外链播放器，贴边唱片样式，悬浮自动展开，**默认暂停**
 - 宣传片录制台：`public/promo-studio.html`，canvas 动画 + `MediaRecorder`，可选码率
@@ -104,6 +107,29 @@
 3. 双击 **`启动4399管理器.bat`**
 
 服务只绑定 `127.0.0.1:8790`，浏览器会自动打开。
+
+## 桌面版（像 QQ 一样双击就开的窗口）
+
+不想开浏览器的话，用桌面版：**双击 `启动4399管理器(桌面版).bat`**，第一次会自动装桌面运行时（约 100MB，只装一次），之后双击就直接弹出独立窗口。
+
+它和 QQ 是同一套技术（Electron = Chromium + Node.js），所以界面就是本项目的前端，只是装进了没有浏览器地址栏的窗口里：
+
+- **无边框窗口 + 自绘标题栏**：右上角 最小化 / 最大化 / 关闭 是真的窗口按钮
+- **关窗口 = 收进托盘**，托盘图标右键可以「退出」；窗口大小与位置会记住
+- **后台服务由外壳托管**：Electron 自带的 Node 直接跑 `server.js`，用户不用单独装 Node.js（打包版）
+- **数据位置**：源码运行时仍是项目内 `data/`；打包成 exe 后写到 `%APPDATA%/4399账号管理器/data`，不碰安装目录
+- 外链一律用系统默认浏览器打开，不会在应用内嵌套网页
+
+想自己打包成单文件 exe：
+
+```bash
+cd desktop
+npm install
+npm run dist      # 产物：desktop/dist/4399-manager-1.0.0-portable.exe
+```
+
+> 桌面版只是外壳，`server.js` / `lib/` / `public/` 一行都没为它改动（仅新增了 `DATA_DIR` 环境变量支持）。
+> 浏览器版和桌面版共用同一套前端与接口，功能完全一致。
 
 > 第一次折腾环境？直接往下看 **新手详细教程**，一步一步照着点就行。
 

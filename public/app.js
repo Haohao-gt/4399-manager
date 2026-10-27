@@ -913,6 +913,8 @@ function renderAccounts(list) {
       </div>`;
   }).join('');
   firstRender = false;
+  // 同步到 NTQQ 风格桌面壳的会话列表（shell.js 未加载时静默跳过）
+  if (window.NTQQ_SHELL) window.NTQQ_SHELL.sync(list, filtered);
 }
 
 /* ---------- 分组（支持嵌套子分组） ---------- */

@@ -14,7 +14,8 @@ const { createVaultCrypto } = require('./lib/vault-crypto');
 const PORT = process.env.PORT ? Number(process.env.PORT) : 8790;
 const HOST = '127.0.0.1';
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const DATA_DIR = path.join(__dirname, 'data');
+// 数据目录：默认项目内 data/；桌面版打包后由外壳通过 DATA_DIR 指到用户目录（安装目录只读）
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'accounts.json');
 const FOLDERS_FILE = path.join(DATA_DIR, 'folders.json');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
@@ -1373,7 +1374,7 @@ const server = http.createServer(async (req, res) => {
         try { author = os.userInfo().username || '—'; } catch (e) { }
         return sendJson(res, 200, {
           name: '4399 账号管理器',
-          version: 'v1.0.0',
+          version: 'v1.1.0',
           host: HOST,
           address: 'http://' + HOST + ':' + PORT,
           author,

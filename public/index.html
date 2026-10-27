@@ -22,6 +22,8 @@
         var seen = false;
         try { seen = sessionStorage.getItem('4399.splashShown') === '1'; } catch (e) { }
         var show = mode !== 'off' && (mode === 'always' || !seen);
+        // ?nosplash=1：跳过启动动画（截图 / 调试用）
+        try { if (/(?:^|[?&])nosplash=1(?:&|$)/.test(location.search)) show = false; } catch (e) { }
         if (show) { try { sessionStorage.setItem('4399.splashShown', '1'); } catch (e) { } }
         else document.documentElement.classList.add('no-splash');
       } catch (e) { document.documentElement.classList.add('no-splash'); }
@@ -124,8 +126,9 @@
     }
   </style>
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/ntqq.css">
 </head>
-<body>
+<body class="ntqq">
   <div id="splash" aria-hidden="true">
     <span class="sp-corner tl"></span><span class="sp-corner tr"></span>
     <span class="sp-corner bl"></span><span class="sp-corner br"></span>
@@ -141,9 +144,24 @@
       <div class="sp-track"><i class="sp-fill"></i></div>
     </div>
   </div>
+  <!-- ---------- 标题栏（桌面壳） ---------- -->
+  <div class="winbar" id="winbar">
+    <div class="winbar-l">
+      <span class="winbar-mark">4399</span>
+      <span class="winbar-title">账号管理器</span>
+      <span class="winbar-tag">本地运行</span>
+    </div>
+    <div class="winbar-r">
+      <button class="winbtn" id="winTheme" data-tip="外观设置：主题配色 / 启动动画" aria-label="外观设置"><span class="ico-slot" data-ico="palette"></span></button>
+      <button class="winbtn" id="winMin" data-tip="最小化" aria-label="最小化">—</button>
+      <button class="winbtn" id="winFull" data-tip="最大化 / 还原" aria-label="最大化">▢</button>
+      <button class="winbtn close" id="winClose" data-tip="关闭窗口" aria-label="关闭">✕</button>
+    </div>
+  </div>
+
   <div class="layout">
-    <!-- ---------- 侧边栏 ---------- -->
-    <aside class="sidebar">
+    <!-- ---------- 左侧图标栏 ---------- -->
+    <aside class="sidebar rail">
       <div class="side-brand">
         <span class="logo">4399</span>
         <div class="brand-txt">
@@ -154,28 +172,55 @@
 
       <nav class="side-nav" id="sideNav">
         <span class="nav-ind" id="navInd"></span>
-        <button class="nav-item active" id="navAccounts" data-tip="查看全部账号总览">
-          <span class="nav-ico ico-slot" data-ico="grid"></span> 账号总览
+        <button class="nav-item active" id="navAccounts" data-tip="账号总览：查看全部账号">
+          <span class="nav-ico ico-slot" data-ico="grid"></span><span class="lbl">账号总览</span>
         </button>
-        <button class="nav-item" id="navGroups" data-tip="分组页：按分组预览账号、批量移动整理">
-          <span class="nav-ico ico-slot" data-ico="folder"></span> 分组
+        <button class="nav-item" id="navGroups" data-tip="分组：按分组预览账号、批量移动整理">
+          <span class="nav-ico ico-slot" data-ico="folder"></span><span class="lbl">分组</span>
         </button>
         <button class="nav-item" id="navVault" data-tip="本地账号库：批量导入的账号密码，可批量登录 / 改备注 / 复制 / 导出 / 删除">
-          <span class="nav-ico ico-slot" data-ico="shield"></span> 本地账号库
+          <span class="nav-ico ico-slot" data-ico="shield"></span><span class="lbl">本地账号库</span>
         </button>
-        <button class="nav-item" id="navAdd" data-tip="用账号密码登录并添加一个 4399 账号（登录态只存本机）">
-          <span class="nav-ico ico-slot" data-ico="plus"></span> 添加账号
+        <button class="nav-item" id="navAdd" data-tip="添加账号：用账号密码登录并添加一个 4399 账号">
+          <span class="nav-ico ico-slot" data-ico="plus"></span><span class="lbl">添加账号</span>
         </button>
-        <button class="nav-item" id="navRegister" data-tip="注册一个新的 4399 账号（需真实姓名 + 身份证）">
-          <span class="nav-ico ico-slot" data-ico="pencil"></span> 注册账号
+        <button class="nav-item" id="navRegister" data-tip="注册账号：注册一个新的 4399 账号">
+          <span class="nav-ico ico-slot" data-ico="pencil"></span><span class="lbl">注册账号</span>
         </button>
-        <button class="nav-item" id="navLinks" data-tip="4399 常用官方页面快捷入口（安全中心 / 充值 / 客服等）">
-          <span class="nav-ico ico-slot" data-ico="external"></span> 快捷入口
+        <button class="nav-item" id="navLinks" data-tip="快捷入口：4399 常用官方页面">
+          <span class="nav-ico ico-slot" data-ico="external"></span><span class="lbl">快捷入口</span>
         </button>
         <button class="nav-item" id="navSettings" data-tip="设置：外观 / 音乐组件 / 辅助账号 / 数据 / 调试工具">
-          <span class="nav-ico ico-slot" data-ico="settings"></span> 设置
+          <span class="nav-ico ico-slot" data-ico="settings"></span><span class="lbl">设置</span>
         </button>
       </nav>
+
+      <div class="rail-foot">
+        <button class="nav-item" id="railTheme" data-tip="外观设置" aria-label="外观设置">
+          <span class="nav-ico ico-slot" data-ico="palette"></span>
+        </button>
+        <button class="nav-item" id="railMusic" data-tip="音乐组件：展开 / 收起" aria-label="音乐组件">
+          <span class="nav-ico ico-slot" data-ico="music"></span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ---------- 会话列表（账号） ---------- -->
+    <aside class="listcol">
+      <div class="list-head">
+        <label class="list-search">
+          <span class="ico-slot" data-ico="search"></span>
+          <input id="listSearch" type="text" placeholder="搜索账号 / UID / 备注…" autocomplete="off">
+        </label>
+        <button class="list-add" id="listAdd" data-tip="添加账号" aria-label="添加账号"><span class="ico-slot" data-ico="plus"></span></button>
+      </div>
+      <div class="list-tabs" id="listTabs">
+        <button class="ltab active" data-tab="all" type="button">全部</button>
+        <button class="ltab" data-tab="valid" type="button">登录有效</button>
+        <button class="ltab" data-tab="expired" type="button">已过期</button>
+      </div>
+      <div class="list-body" id="sessionList"></div>
+      <div class="list-foot" id="listFoot">共 0 个账号</div>
     </aside>
 
     <!-- ---------- 主内容 ---------- -->
@@ -187,6 +232,7 @@
           <p class="sub" id="pageSub">集中管理你的 4399 账号信息、签到与游戏角色</p>
         </div>
         <div class="topbar-actions">
+          <button class="btn ghost" id="showAllBtn" hidden data-tip="退出单账号聚焦，显示全部账号"><span class="ico-slot" data-ico="arrowLeft"></span> 全部账号</button>
           <button class="btn ghost" id="themeBtn" data-tip="外观设置：主题配色 / 启动动画"><span class="ico-slot" data-ico="palette"></span> 外观</button>
           <span class="badge" id="connBadge"><span class="ico-slot" data-ico="dot"></span> 本地运行</span>
         </div>
@@ -497,6 +543,7 @@
   </div>
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script src="/shell.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

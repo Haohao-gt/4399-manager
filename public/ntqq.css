@@ -1,0 +1,376 @@
+/* ============================================================
+   NTQQ 风格桌面壳（在 style.css 之后加载，只做覆盖，不改原组件）
+   结构：
+     .winbar                标题栏（左：应用标识；右：窗口按钮）
+     .layout
+       .sidebar.rail        左侧图标栏（原导航，仅图标）
+       .listcol             会话列表（账号）
+       .content             右侧内容区（原页面）
+   ============================================================ */
+
+body.ntqq {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ---------- 标题栏 ---------- */
+.winbar {
+  position: relative;
+  z-index: 40;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 14px;
+  background: var(--side-bg-2);
+  border-bottom: 1px solid var(--border-soft);
+  user-select: none;
+  -webkit-app-region: drag;
+}
+.winbar-l { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.winbar-mark {
+  width: 22px; height: 22px; border-radius: 6px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent-deep); color: var(--logo-ink);
+  font-size: 8.5px; font-weight: 800; letter-spacing: -0.3px;
+}
+.winbar-title { font-size: 12.5px; font-weight: 600; color: var(--text); opacity: .92; }
+.winbar-tag {
+  font-size: 10.5px; color: var(--muted-2);
+  padding: 0 7px; line-height: 17px;
+  border: 1px solid var(--border-soft); border-radius: 999px;
+}
+.winbar-r { display: flex; align-items: center; height: 100%; -webkit-app-region: no-drag; }
+.winbtn {
+  width: 44px; height: 38px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; background: transparent; color: var(--muted);
+  font-size: 13px; line-height: 1; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.winbtn .ico { width: 14px; height: 14px; }
+.winbtn:hover { background: var(--panel-2); color: var(--text); }
+.winbtn.close:hover { background: #d13438; color: #fff; }
+
+/* ---------- 三段式骨架 ---------- */
+.layout {
+  display: flex;
+  flex-direction: row;
+  height: calc(100vh - 38px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ---------- 左侧图标栏 ---------- */
+.sidebar.rail {
+  width: 64px; flex: 0 0 64px;
+  position: relative; top: auto;
+  height: 100%;
+  min-height: 0;
+  align-items: center; gap: 4px;
+  padding: 10px 0 108px;   /* 底部留给 rail-foot */
+  overflow: hidden;
+  border-right: 1px solid var(--border-soft);
+  background: linear-gradient(180deg, var(--side-bg-1), var(--side-bg-2));
+}
+
+/* 主题吉祥物（豆娃 / 托尔）在图标栏里缩成小摆件，别盖住底部按钮 */
+body.ntqq .sidebar.rail::after {
+  height: 72px;
+  margin: auto 0 0;
+  opacity: .92;
+}
+.rail .side-brand { justify-content: center; padding: 2px 0 10px; }
+.rail .side-brand .logo {
+  width: 38px; height: 38px; border-radius: 11px;
+  font-size: 12px; letter-spacing: -0.6px;
+}
+.rail .side-brand .brand-txt { display: none; }
+
+.rail .side-nav {
+  width: 100%;
+  align-items: center;
+  gap: 4px;
+}
+.rail .nav-ind { display: none; }
+.rail .nav-item {
+  width: 44px; height: 44px;
+  padding: 0; gap: 0;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 0;                 /* 兜底：万一有未包裹的文字也不显示 */
+}
+.rail .nav-item:hover { transform: none; }
+.rail .nav-item .lbl { display: none; }
+.rail .nav-ico { width: 20px; height: 20px; }
+.rail .nav-ico .ico { width: 18px; height: 18px; }
+.rail .nav-item.active {
+  background: linear-gradient(180deg, var(--accent-soft), var(--accent-soft-2));
+  border-color: var(--accent-border);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+}
+.rail .nav-item.active .nav-ico { color: var(--accent); }
+
+.rail-foot {
+  position: absolute;
+  left: 0; right: 0; bottom: 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+
+/* ---------- 中间会话列表 ---------- */
+.listcol {
+  width: 272px; flex: 0 0 272px;
+  display: flex; flex-direction: column;
+  min-height: 0;
+  background: var(--panel-grad);
+  border-right: 1px solid var(--border-soft);
+}
+.list-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px 8px; }
+.list-search {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 7px;
+  height: 32px; padding: 0 10px;
+  border-radius: 8px;
+  background: var(--inset);
+  border: 1px solid var(--border-soft);
+  color: var(--muted-2);
+  transition: border-color .18s, background .18s;
+}
+.list-search:focus-within { border-color: var(--accent-border); background: var(--inset-2); }
+.list-search .ico { width: 13px; height: 13px; }
+.list-search input {
+  flex: 1; min-width: 0;
+  background: transparent; border: 0; outline: none;
+  color: var(--text); font-size: 12.5px; font-family: inherit;
+}
+.list-search input::placeholder { color: var(--muted-2); }
+.list-add {
+  width: 32px; height: 32px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: var(--panel-2); color: var(--muted);
+  cursor: pointer; transition: color .16s, border-color .16s, background .16s;
+}
+.list-add:hover { color: var(--accent); border-color: var(--accent-border); background: var(--panel-3); }
+.list-add .ico { width: 14px; height: 14px; }
+
+.list-tabs { display: flex; gap: 6px; padding: 0 12px 8px; }
+.ltab {
+  flex: 1; height: 26px;
+  border-radius: 7px; border: 1px solid transparent;
+  background: transparent; color: var(--muted-2);
+  font-size: 11.5px; font-family: inherit; cursor: pointer;
+  transition: background .16s, color .16s, border-color .16s;
+}
+.ltab:hover { color: var(--text); background: var(--panel-2); }
+.ltab.active { background: var(--accent-soft); color: var(--text); border-color: var(--accent-border); }
+
+.list-body { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 8px 10px; }
+.list-body::-webkit-scrollbar { width: 8px; }
+.list-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+
+.sess {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background .16s, border-color .16s;
+}
+.sess + .sess { margin-top: 2px; }
+.sess:hover { background: var(--panel-2); }
+.sess.active {
+  background: linear-gradient(90deg, var(--accent-soft), var(--accent-soft-2));
+  border-color: var(--accent-border);
+}
+.sess-av {
+  width: 36px; height: 36px; flex: none;
+  border-radius: 50%; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel-3); color: var(--accent-ink);
+  font-size: 13px; font-weight: 700;
+}
+.sess-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sess-main { flex: 1; min-width: 0; }
+.sess-name {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 13px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sess-name .pin-mark { font-size: 9px; color: var(--accent); flex: none; }
+.sess-sub {
+  margin-top: 1px;
+  font-size: 11.5px; color: var(--muted-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sess-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.sess-time { font-size: 10.5px; color: var(--muted-2); font-variant-numeric: tabular-nums; }
+.sess-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--err); box-shadow: 0 0 6px rgba(248, 81, 73, .8);
+}
+.sess-dot.ok { background: var(--ok); box-shadow: 0 0 6px rgba(63, 185, 80, .7); }
+
+.list-empty {
+  padding: 26px 14px;
+  text-align: center;
+  color: var(--muted-2);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.list-foot {
+  flex: none;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--muted-2);
+  font-size: 11px;
+}
+
+/* ---------- 右侧内容区 ---------- */
+.content {
+  flex: 1; min-width: 0; max-width: none;
+  overflow-y: auto;
+  padding: 0 24px 28px;
+}
+.content::-webkit-scrollbar { width: 10px; }
+.content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+/* 顶栏 → 会话头（贴顶、毛玻璃、细分割线） */
+.content .topbar {
+  position: sticky; top: 0; z-index: 20;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 14px !important;
+  min-height: 0 !important;
+  margin: 0 -24px 18px !important;
+  padding: 11px 24px !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border-soft) !important;
+  box-shadow: none !important;
+  background: var(--bg-2) !important;
+  overflow: visible !important;
+}
+.content .topbar::before,
+.content .topbar::after { display: none !important; }
+.content .topbar .hero-art { display: none !important; }
+.content .topbar .page-title { max-width: none !important; position: static !important; }
+.content .topbar .page-title h1 {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-shadow: none !important;
+}
+.content .topbar .page-title .sub {
+  margin-top: 0;
+  font-size: 11.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.content .topbar .topbar-actions { max-width: none !important; position: static !important; }
+
+/* 统计条 → 一排紧凑小卡 */
+.content .stats-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.content .stat-card { padding: 11px 13px; border-radius: 12px; }
+.content .stat-card:hover { transform: none; }
+.content .stat-card .stat-ico { width: 26px; height: 26px; border-radius: 8px; }
+.content .stat-card .stat-ico .ico { width: 13px; height: 13px; }
+.content .stat-card .stat-value { font-size: 19px; }
+.content .stat-card .stat-label { font-size: 11.5px; }
+.content .stat-card .stat-sub { font-size: 10.5px; }
+
+/* 账号卡片：宽屏两列，窄屏一列 */
+.content .accounts { grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 12px; }
+.content .accounts-panel { border-radius: 12px; }
+
+/* 单账号聚焦：卡片居中一列，不要铺满整屏 */
+.content .accounts.focus-mode { grid-template-columns: minmax(0, 720px); }
+
+/* 分组 / 账号库自带左侧导航，收起会话列表 */
+body.page-groups .listcol,
+body.page-vault .listcol { display: none; }
+
+/* 单账号聚焦时的一条提示 */
+.focus-hint {
+  display: none;
+  align-items: center; gap: 8px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--accent-soft-2);
+  border: 1px solid var(--accent-border);
+  color: var(--muted);
+  font-size: 12px;
+}
+.focus-hint.on { display: flex; }
+.focus-hint b { color: var(--text); font-weight: 600; }
+
+/* ---------- 会话右键菜单 ---------- */
+.sess-menu {
+  position: fixed; z-index: 200;
+  min-width: 176px;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .55);
+  animation: sessMenuIn .12s ease both;
+}
+@keyframes sessMenuIn { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+.sess-menu button {
+  width: 100%;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 9px;
+  border: 0; border-radius: 7px;
+  background: transparent; color: var(--text);
+  font-size: 12.5px; font-family: inherit; text-align: left; cursor: pointer;
+}
+.sess-menu button:hover { background: var(--btn-hover); }
+.sess-menu button .ico { width: 13px; height: 13px; opacity: .8; }
+.sess-menu button.danger { color: var(--err); }
+.sess-menu .sep { height: 1px; margin: 5px 4px; background: var(--border-soft); }
+
+/* ---------- 音乐组件：贴右下角，避免压住会话列表 ---------- */
+body.ntqq .music-widget {
+  left: auto; right: 0;
+  bottom: 18px;
+  transform: translateX(12px);
+  border-left: 1px solid var(--border-soft);
+  border-right: 0;
+  border-radius: 16px 0 0 16px;
+}
+body.ntqq .music-widget:hover,
+body.ntqq .music-widget.pinned { transform: translateX(0); }
+
+/* ---------- 窄屏：收起会话列表，图标栏保留 ---------- */
+@media (max-width: 1080px) {
+  .listcol { display: none; }
+}
+@media (max-width: 980px) {
+  body.ntqq .layout { flex-direction: row; }
+  body.ntqq .sidebar.rail {
+    width: 56px; flex-basis: 56px;
+    flex-direction: column; flex-wrap: nowrap;
+    align-items: center; gap: 4px;
+    height: 100%; position: relative; top: auto;
+    padding: 10px 0 108px;
+    border-right: 1px solid var(--border-soft);
+    border-bottom: 0;
+  }
+  body.ntqq .rail .side-nav { flex-direction: column; flex-wrap: nowrap; }
+  body.ntqq .content { padding: 0 14px 20px; }
+  body.ntqq .content .topbar { margin: 0 -14px 14px !important; padding: 10px 14px !important; }
+  body.ntqq .content .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.ntqq .content .accounts { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  body.ntqq .content .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .winbar-tag { display: none; }
+  .winbar-title { font-size: 12px; }
+}

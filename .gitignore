@@ -1,3 +1,7 @@
 node_modules/
 data/
 *.log
+
+# 桌面版（Electron）
+desktop/node_modules/
+desktop/dist/
