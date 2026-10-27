@@ -29,6 +29,29 @@ let serverProc = null;
 let serverPort = PREFERRED_PORT;
 let quitting = false;
 
+/* ---------------- 数据目录（绿色版：跟随 exe） ---------------- */
+let cachedDataDir = null;
+function resolveDataDir() {
+  if (cachedDataDir) return cachedDataDir;
+  if (!app.isPackaged) { cachedDataDir = path.join(APP_ROOT, 'data'); return cachedDataDir; }
+  const beside = path.join(path.dirname(process.execPath), 'data');
+  try {
+    fs.mkdirSync(beside, { recursive: true });
+    fs.accessSync(beside, fs.constants.W_OK);
+    cachedDataDir = beside;
+  } catch (e) {
+    cachedDataDir = path.join(app.getPath('userData'), 'data');
+  }
+  return cachedDataDir;
+}
+
+/* ---------------- 图标路径（打包后在 resources 下，不在 asar 里） ---------------- */
+function iconPath() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'icon.ico')
+    : path.join(__dirname, 'build', 'icon.ico');
+}
+
 /* ---------------- 端口探测 ---------------- */
 function probe(url, timeout = 800) {
   return new Promise((resolve) => {
@@ -73,10 +96,9 @@ function startServer(port) {
     // 用 Electron 自带的 Node 跑服务端，用户不需要另外装 Node.js
     ELECTRON_RUN_AS_NODE: '1',
   });
-  // 打包后数据不能写进只读的安装目录，落到用户数据目录
-  if (app.isPackaged) {
-    env.DATA_DIR = path.join(app.getPath('userData'), 'data');
-  }
+  // 绿色版：数据默认放在 exe 旁边的 data/（拷走文件夹 = 连账号一起搬走）
+  // 目录不可写（比如放在 Program Files）时，退回 %APPDATA%
+  env.DATA_DIR = resolveDataDir();
 
   serverProc = spawn(process.execPath, [entry], {
     cwd: APP_ROOT,
@@ -133,7 +155,7 @@ function saveState() {
 /* ---------------- 主窗口 ---------------- */
 function createWindow(port) {
   const st = loadState();
-  const iconPath = path.join(__dirname, 'build', 'icon.ico');
+  const icoPath = iconPath();
 
   mainWindow = new BrowserWindow({
     width: st.width,
@@ -145,7 +167,7 @@ function createWindow(port) {
     show: false,
     frame: false,                 // 无边框：标题栏由前端 ntqq.css 自绘
     backgroundColor: '#101317',
-    icon: fs.existsSync(iconPath) ? iconPath : undefined,
+    icon: fs.existsSync(icoPath) ? icoPath : undefined,
     title: '4399 账号管理器',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -157,6 +179,22 @@ function createWindow(port) {
   });
 
   Menu.setApplicationMenu(null);
+
+  // 验证用：SHOT_PATH 环境变量 -> 截图后自动退出（必须在 loadURL 前注册，否则可能错过事件）
+  if (SHOT_PATH) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      setTimeout(async () => {
+        try {
+          const img = await mainWindow.webContents.capturePage();
+          fs.writeFileSync(SHOT_PATH, img.toPNG());
+          console.log('[shot] saved ' + SHOT_PATH);
+        } catch (e) { console.error('[shot] fail', e); }
+        quitting = true;
+        app.quit();
+      }, 4000);
+    });
+  }
+
   // 截图验证时跳过启动动画，直接看主界面
   mainWindow.loadURL(`http://${HOST}:${port}/${SHOT_PATH ? '?nosplash=1' : ''}`);
 
@@ -189,28 +227,16 @@ function createWindow(port) {
     return { action: 'deny' };
   });
 
-  // 验证用：SHOT_PATH 环境变量 -> 截图后自动退出
-  if (SHOT_PATH) {
-    mainWindow.webContents.once('did-finish-load', () => {
-      setTimeout(async () => {
-        try {
-          const img = await mainWindow.webContents.capturePage();
-          fs.writeFileSync(SHOT_PATH, img.toPNG());
-          console.log('[shot] saved ' + SHOT_PATH);
-        } catch (e) { console.error('[shot] fail', e); }
-        quitting = true;
-        app.quit();
-      }, 5200);
-    });
-  }
 }
 
 /* ---------------- 托盘 ---------------- */
 function createTray() {
-  const iconPath = path.join(__dirname, 'build', 'icon.ico');
-  if (!fs.existsSync(iconPath)) return;
+  const icoPath = iconPath();
+  if (!fs.existsSync(icoPath)) return;
   try {
-    tray = new Tray(nativeImage.createFromPath(iconPath));
+    const img = nativeImage.createFromPath(icoPath);
+    if (img.isEmpty()) return;
+    tray = new Tray(img);
     tray.setToolTip('4399 账号管理器');
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: '显示主窗口', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
@@ -233,7 +259,7 @@ ipcMain.on('win:close', () => {
 });
 ipcMain.handle('win:is-maximized', () => (mainWindow ? mainWindow.isMaximized() : false));
 ipcMain.handle('app:open-data-dir', () => {
-  const dir = app.isPackaged ? path.join(app.getPath('userData'), 'data') : path.join(APP_ROOT, 'data');
+  const dir = resolveDataDir();
   try { fs.mkdirSync(dir, { recursive: true }); shell.openPath(dir); } catch (e) { }
   return dir;
 });

@@ -10,7 +10,7 @@
     "start": "electron .",
     "dev": "electron . --dev",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder --win portable"
+    "dist": "electron-builder --win"
   },
   "devDependencies": {
     "electron": "^38.0.0",
@@ -39,20 +39,23 @@
           "public/**/*",
           "tools/**/*"
         ]
+      },
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
       }
     ],
     "win": {
       "target": [
         {
-          "target": "portable",
-          "arch": ["x64"]
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
         }
       ],
-      "icon": "build/icon.ico"
-    },
-    "portable": {
-      "artifactName": "4399-manager-${version}-portable.exe",
-      "unpackDirName": "4399Manager"
+      "icon": "build/icon.ico",
+      "artifactName": "4399-manager-${version}-win64.${ext}"
     }
   }
 }
